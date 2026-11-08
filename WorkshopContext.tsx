@@ -1,0 +1,82 @@
+'use client';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import type { AppConfig, CashflowTransaction, Customer, CustomerMeasurement, Order, WorkshopStore } from '@/types/workshop';
+
+const STORAGE_KEY = 'denim_workshop_store_v1';
+const now = new Date();
+const date = (offset: number) => { const d = new Date(now); d.setDate(d.getDate() + offset); return d.toISOString().slice(0,10); };
+const stamp = (offset: number) => new Date(now.getTime() + offset * 86400000).toISOString();
+const customers: Customer[] = [
+  {id:'CUS-001',name:'Rizky Pratama',phone:'081234567890',normalized_phone:'6281234567890',address:'Lowokwaru, Malang',notes:'Suka potongan straight fit.',created_at:stamp(-100),updated_at:stamp(-2)},
+  {id:'CUS-002',name:'Nadia Putri',phone:'082145678901',normalized_phone:'6282145678901',address:'Klojen, Malang',notes:'Preferensi bahan denim ringan.',created_at:stamp(-80),updated_at:stamp(-5)},
+  {id:'CUS-003',name:'Fajar Maulana',phone:'085735678912',normalized_phone:'6285735678912',address:'Batu, Malang',notes:'Pelanggan repair rutin.',created_at:stamp(-60),updated_at:stamp(-1)},
+  {id:'CUS-004',name:'Dimas Saputra',phone:'087812345678',normalized_phone:'6287812345678',address:'Sukun, Malang',notes:'Ukuran custom tersimpan.',created_at:stamp(-40),updated_at:stamp(-3)}
+];
+const measurements: CustomerMeasurement[] = [
+  {id:'MES-001',customer_id:'CUS-001',profile_label:'Jeans Regular',category:'Celana_Jeans',unit:'cm',metrics:{waist:84,hip:100,thigh:58,knee:42,leg_opening:38,outseam:102,inseam:76,rise:28},fitting_notes:'Straight fit, sedikit ruang di paha.',updated_at:stamp(-2)},
+  {id:'MES-002',customer_id:'CUS-001',profile_label:'Overshirt',category:'Kemeja_Atasan',unit:'cm',metrics:{chest:104,shoulder:46,sleeve:62,length:72},fitting_notes:'Relaxed fit.',updated_at:stamp(-12)},
+  {id:'MES-003',customer_id:'CUS-002',profile_label:'Jeans High Rise',category:'Celana_Jeans',unit:'cm',metrics:{waist:72,hip:96,thigh:56,knee:40,leg_opening:34,outseam:99,inseam:72,rise:30},fitting_notes:'High rise, tapered ringan.',updated_at:stamp(-5)},
+  {id:'MES-004',customer_id:'CUS-003',profile_label:'Work Pants',category:'Celana_Jeans',unit:'inch',metrics:{waist:34,hip:40,thigh:23,knee:17,leg_opening:16,outseam:40,inseam:30,rise:11},fitting_notes:'Simpan panjang asli.',updated_at:stamp(-1)},
+  {id:'MES-005',customer_id:'CUS-004',profile_label:'Denim Jacket',category:'Kemeja_Atasan',unit:'cm',metrics:{chest:112,shoulder:49,sleeve:64,length:66},fitting_notes:'Body sedikit boxy.',updated_at:stamp(-3)},
+  {id:'MES-006',customer_id:'CUS-004',profile_label:'Apron',category:'Aksesori_Lainnya',unit:'cm',metrics:{width:68,length:82,strap:75},fitting_notes:'Tali adjustable.',updated_at:stamp(-3)}
+];
+const makeItem = (id:string, service_type:'Custom'|'Repair', category:string, item_name:string, unit_price:number, points:number, specifications:string, measurement_id:string|null=null) => ({id,service_type,category,item_name,measurement_id, specifications,qty:1,unit_price,subtotal:unit_price,workload_points:points,total_points:points});
+const orders: Order[] = [
+ {id:'ORD-1024',customer_id:'CUS-001',customer_name_snapshot:'Rizky Pratama',customer_phone_snapshot:'6281234567890',order_date:date(-1),deadline_date:date(5),status:'Received',items:[makeItem('IT-1','Custom','Celana_Jeans','Jeans 14oz Non Selvedge',275000,5,'Indigo, straight fit, button fly.','MES-001')],total_workload_points:5,subtotal_amount:275000,discount_amount:0,total_amount:275000,dp_amount:100000,paid_amount:100000,remaining_balance:175000,payment_status:'Partial',payment_method:'Transfer',cash_received:0,cash_change:0,notes:'Konfirmasi warna benang sebelum produksi.',created_at:stamp(-1),updated_at:stamp(-1)},
+ {id:'ORD-1023',customer_id:'CUS-002',customer_name_snapshot:'Nadia Putri',customer_phone_snapshot:'6282145678901',order_date:date(-3),deadline_date:date(3),status:'In Progress',items:[makeItem('IT-2','Custom','Celana_Jeans','Jeans High Rise',450000,6,'Selvedge 14oz, tapered.','MES-003')],total_workload_points:6,subtotal_amount:450000,discount_amount:25000,total_amount:425000,dp_amount:200000,paid_amount:200000,remaining_balance:225000,payment_status:'Partial',payment_method:'QRIS',cash_received:0,cash_change:0,notes:'Proses konstruksi.',created_at:stamp(-3),updated_at:stamp(-1)},
+ {id:'ORD-1022',customer_id:'CUS-003',customer_name_snapshot:'Fajar Maulana',customer_phone_snapshot:'6285735678912',order_date:date(-6),deadline_date:date(0),status:'In Progress',items:[makeItem('IT-3','Repair','Celana_Jeans','Tambal Sashiko',75000,2,'Lubang lutut kanan, patch dari dalam.','MES-004'),makeItem('IT-4','Repair','Celana_Jeans','Potong Sambung',60000,1,'Pertahankan chain stitch.')],total_workload_points:3,subtotal_amount:135000,discount_amount:0,total_amount:135000,dp_amount:50000,paid_amount:50000,remaining_balance:85000,payment_status:'Partial',payment_method:'Cash',cash_received:50000,cash_change:0,notes:'Prioritaskan jahitan rantai.',created_at:stamp(-6),updated_at:stamp(-2)},
+ {id:'ORD-1021',customer_id:'CUS-004',customer_name_snapshot:'Dimas Saputra',customer_phone_snapshot:'6287812345678',order_date:date(-9),deadline_date:date(-2),status:'Completed',items:[makeItem('IT-5','Custom','Kemeja_Atasan','Denim Jacket Custom',650000,7,'Jaket denim 12oz, copper rivet.','MES-005')],total_workload_points:7,subtotal_amount:650000,discount_amount:0,total_amount:650000,dp_amount:300000,paid_amount:650000,remaining_balance:0,payment_status:'Paid',payment_method:'Transfer',cash_received:0,cash_change:0,notes:'Siap diambil.',created_at:stamp(-9),updated_at:stamp(-1)},
+ {id:'ORD-1020',customer_id:'CUS-001',customer_name_snapshot:'Rizky Pratama',customer_phone_snapshot:'6281234567890',order_date:date(-15),deadline_date:date(-7),status:'Picked Up',items:[makeItem('IT-6','Repair','Celana_Jeans','Kecilkan Pinggang',70000,2,'Kecilkan 2 cm kiri kanan.')],total_workload_points:2,subtotal_amount:70000,discount_amount:0,total_amount:70000,dp_amount:0,paid_amount:70000,remaining_balance:0,payment_status:'Paid',payment_method:'Cash',cash_received:70000,cash_change:0,notes:'Sudah diserahkan.',created_at:stamp(-15),updated_at:stamp(-7)},
+ {id:'ORD-1019',customer_id:'CUS-002',customer_name_snapshot:'Nadia Putri',customer_phone_snapshot:'6282145678901',order_date:date(-25),deadline_date:date(-18),status:'Picked Up',items:[makeItem('IT-7','Repair','Celana_Jeans','Ganti Resleting',45000,1,'Resleting metal YKK.')],total_workload_points:1,subtotal_amount:45000,discount_amount:0,total_amount:45000,dp_amount:0,paid_amount:45000,remaining_balance:0,payment_status:'Paid',payment_method:'QRIS',cash_received:0,cash_change:0,notes:'Selesai.',created_at:stamp(-25),updated_at:stamp(-18)}
+];
+const cashflow: CashflowTransaction[] = [
+ {id:'CF-001',transaction_date:date(0),type:'Income',category:'DP Custom',amount:100000,payment_method:'Transfer',reference_order_id:'ORD-1024',transaction_tag:'DP',description:'DP Jeans Rizky',created_at:stamp(0)},
+ {id:'CF-002',transaction_date:date(-1),type:'Expense',category:'Bahan Baku',amount:185000,payment_method:'Cash',reference_order_id:null,transaction_tag:'MANUAL',description:'Pembelian denim dan benang',created_at:stamp(-1)},
+ {id:'CF-003',transaction_date:date(-2),type:'Income',category:'Pelunasan',amount:350000,payment_method:'QRIS',reference_order_id:'ORD-1021',transaction_tag:'SETTLEMENT',description:'Pelunasan jaket Dimas',created_at:stamp(-2)},
+ {id:'CF-004',transaction_date:date(-3),type:'Income',category:'DP Custom',amount:200000,payment_method:'QRIS',reference_order_id:'ORD-1023',transaction_tag:'DP',description:'DP jeans Nadia',created_at:stamp(-3)},
+ {id:'CF-005',transaction_date:date(-5),type:'Expense',category:'Operasional',amount:75000,payment_method:'Cash',reference_order_id:null,transaction_tag:'MANUAL',description:'Listrik dan kebutuhan workshop',created_at:stamp(-5)},
+ {id:'CF-006',transaction_date:date(-10),type:'Income',category:'Repair',amount:135000,payment_method:'Cash',reference_order_id:'ORD-1022',transaction_tag:'DP',description:'DP reparasi Fajar',created_at:stamp(-6)},
+ {id:'CF-007',transaction_date:date(-32),type:'Expense',category:'Peralatan',amount:320000,payment_method:'Transfer',reference_order_id:null,transaction_tag:'MANUAL',description:'Service mesin jahit',created_at:stamp(-32)},
+ {id:'CF-008',transaction_date:date(-40),type:'Income',category:'Pelunasan',amount:115000,payment_method:'Cash',reference_order_id:'ORD-1020',transaction_tag:'SETTLEMENT',description:'Pelunasan repair Rizky',created_at:stamp(-40)}
+];
+const defaultConfig: AppConfig = {workshop_name:'BRKH DENIM',workshop_tagline:'RAW AUTHENTIC DURABLE',workshop_phone:'',workshop_address:'Malang, Indonesia',logo_url_or_base64:'',currency:'IDR',measurement_unit:'cm',daily_workload_capacity:20,auto_settle_on_completed:true,receipt_format:'Thermal_80mm',receipt_footer_note:'Terima kasih telah mempercayakan denim Anda kepada BRKH DENIM.',google_script_url:'',last_sync_at:null};
+export const seedStore: WorkshopStore = {customers,measurements,orders,cashflow,config:defaultConfig};
+interface WorkshopContextValue extends WorkshopStore {
+ hydrated:boolean;
+ updateConfig:(patch:Partial<AppConfig>)=>void;
+ addCustomer:(customer:Omit<Customer,'id'|'normalized_phone'|'created_at'|'updated_at'>)=>{ok:boolean;message:string};
+ updateCustomer:(id:string, patch:Partial<Omit<Customer,'id'|'created_at'>>)=>{ok:boolean;message:string};
+ addMeasurement:(input:Omit<CustomerMeasurement,'id'|'updated_at'>)=>void;
+ updateMeasurement:(id:string, patch:Partial<Omit<CustomerMeasurement,'id'|'customer_id'>>)=>void;
+ createOrder:(input:Omit<Order,'id'|'created_at'|'updated_at'|'paid_amount'|'remaining_balance'|'payment_status'|'cash_change'>)=>Order;
+ updateOrder:(id:string, patch:Partial<Order>)=>void;
+}
+const WorkshopContext = createContext<WorkshopContextValue | null>(null);
+export function normalizePhone(phone:string):string { let digits=phone.replace(/\D/g,''); if(digits.startsWith('0')) digits='62'+digits.slice(1); else if(digits.startsWith('8')) digits='62'+digits; return digits; }
+export function formatCurrency(amount:number,currency:AppConfig['currency']='IDR'):string { return new Intl.NumberFormat('id-ID',{style:'currency',currency,maximumFractionDigits:currency==='IDR'?0:2}).format(amount); }
+const makeId=(prefix:string)=>`${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+export function WorkshopProvider({children}:{children:React.ReactNode}) {
+ const [store,setStore]=useState<WorkshopStore>(seedStore); const [hydrated,setHydrated]=useState(false);
+ useEffect(()=>{ try { const saved=localStorage.getItem(STORAGE_KEY); if(saved){const parsed=JSON.parse(saved) as Partial<WorkshopStore>; setStore({...seedStore,...parsed,config:{...defaultConfig,...parsed.config}});} } catch(e){console.error('Unable to load workshop data',e);} finally{setHydrated(true);} },[]);
+ useEffect(()=>{if(hydrated) localStorage.setItem(STORAGE_KEY,JSON.stringify(store));},[store,hydrated]);
+ const updateConfig=useCallback((patch:Partial<AppConfig>)=>setStore(s=>({...s,config:{...s.config,...patch}})),[]);
+ const addCustomer=useCallback((input:Omit<Customer,'id'|'normalized_phone'|'created_at'|'updated_at'>)=>{const normalized=normalizePhone(input.phone); if(!normalized || store.customers.some(c=>c.normalized_phone===normalized)) return {ok:false,message:'Nomor telepon tidak valid atau sudah terdaftar.'}; const timestamp=new Date().toISOString(); const customer:Customer={...input,id:makeId('CUS'),normalized_phone:normalized,created_at:timestamp,updated_at:timestamp}; setStore(s=>({...s,customers:[customer,...s.customers]})); return {ok:true,message:'Pelanggan berhasil ditambahkan.'};},[store.customers]);
+ const updateCustomer=useCallback((id:string,patch:Partial<Omit<Customer,'id'|'created_at'>>)=>{const current=store.customers.find(c=>c.id===id); if(!current)return {ok:false,message:'Pelanggan tidak ditemukan.'}; const normalized=patch.phone!==undefined?normalizePhone(patch.phone):current.normalized_phone; if(store.customers.some(c=>c.id!==id&&c.normalized_phone===normalized))return {ok:false,message:'Nomor telepon sudah digunakan pelanggan lain.'}; setStore(s=>({...s,customers:s.customers.map(c=>c.id===id?{...c,...patch,normalized_phone:normalized,updated_at:new Date().toISOString()}:c)})); return {ok:true,message:'Data pelanggan diperbarui.'};},[store.customers]);
+ const addMeasurement=useCallback((input:Omit<CustomerMeasurement,'id'|'updated_at'>)=>{const item:CustomerMeasurement={...input,id:makeId('MES'),updated_at:new Date().toISOString()};setStore(s=>({...s,measurements:[item,...s.measurements]}));},[]);
+ const updateMeasurement=useCallback((id:string,patch:Partial<Omit<CustomerMeasurement,'id'|'customer_id'>>)=>setStore(s=>({...s,measurements:s.measurements.map(m=>m.id===id?{...m,...patch,updated_at:new Date().toISOString()}:m)})),[]);
+ const createOrder=useCallback((input:Omit<Order,'id'|'created_at'|'updated_at'|'paid_amount'|'remaining_balance'|'payment_status'|'cash_change'>)=>{
+  const timestamp=new Date().toISOString(); const id=makeId('ORD'); const paid=Math.min(input.total_amount,Math.max(0,input.dp_amount));
+  const order:Order={...input,id,paid_amount:paid,remaining_balance:Math.max(0,input.total_amount-paid),payment_status:paid<=0?'Unpaid':paid>=input.total_amount?'Paid':'Partial',cash_change:Math.max(0,input.cash_received-input.dp_amount),created_at:timestamp,updated_at:timestamp};
+  setStore(s=>({...s,orders:[order,...s.orders],cashflow:order.dp_amount>0?[{id:makeId('CF'),transaction_date:order.order_date,type:'Income',category:'DP Pesanan',amount:order.dp_amount,payment_method:order.payment_method,reference_order_id:id,transaction_tag:'DP',description:`DP ${order.id} · ${order.customer_name_snapshot}`,created_at:timestamp},...s.cashflow]:s.cashflow})); return order;
+ },[]);
+ const updateOrder=useCallback((id:string,patch:Partial<Order>)=>setStore(s=>{
+  const current=s.orders.find(o=>o.id===id); if(!current)return s; let updated={...current,...patch,updated_at:new Date().toISOString()};
+  const shouldSettle=s.config.auto_settle_on_completed&&(updated.status==='Completed'||updated.status==='Picked Up')&&updated.remaining_balance>0;
+  let cashflow=s.cashflow;
+  if(shouldSettle){const exists=cashflow.some(t=>t.reference_order_id===id&&t.transaction_tag==='SETTLEMENT'); if(!exists)cashflow=[{id:makeId('CF'),transaction_date:new Date().toISOString().slice(0,10),type:'Income',category:'Pelunasan Pesanan',amount:updated.remaining_balance,payment_method:updated.payment_method,reference_order_id:id,transaction_tag:'SETTLEMENT',description:`Pelunasan ${id} · ${updated.customer_name_snapshot}`,created_at:new Date().toISOString()},...cashflow]; updated={...updated,paid_amount:updated.total_amount,remaining_balance:0,payment_status:'Paid'};}
+  return {...s,orders:s.orders.map(o=>o.id===id?updated:o),cashflow};
+ }),[]);
+ const value=useMemo(()=>({...store,hydrated,updateConfig,addCustomer,updateCustomer,addMeasurement,updateMeasurement,createOrder,updateOrder}),[store,hydrated,updateConfig,addCustomer,updateCustomer,addMeasurement,updateMeasurement,createOrder,updateOrder]);
+ return <WorkshopContext.Provider value={value}>{children}</WorkshopContext.Provider>;
+}
+export function useWorkshop(){const value=useContext(WorkshopContext);if(!value)throw new Error('useWorkshop must be used within WorkshopProvider');return value;}
