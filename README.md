@@ -1,34 +1,23 @@
-# Denim & Tailor Workshop Management System — Stage 1
+# Denim & Tailor Workshop Management System
 
-A modular Next.js App Router foundation using TypeScript, Tailwind CSS, Lucide React, React Context, and browser localStorage.
+Next.js 14 App Router · TypeScript · Tailwind CSS · Lucide React
 
-## Requirements
-- Node.js 18.17+ (Node 20 LTS recommended)
-- npm
+## Stage 2 modules
+- Customer directory with name/phone search, duplicate normalized-phone validation, and WhatsApp links.
+- Customer profiles with multiple measurement categories, editable measurement cards, configurable cm/inch units, fitting notes, and order history.
+- Multi-item order creation/editing, workload and price calculations, customer measurement links, cash change calculation, and status queue.
+- DP income records are created automatically for new orders with DP.
+- Completing or picking up an order automatically settles its remaining balance when `auto_settle_on_completed` is enabled. A reference-order/tag check prevents duplicate settlement transactions.
+- Printable receipt preview and itemized WhatsApp receipt.
 
 ## Run locally
 ```bash
 npm install
 npm run dev
 ```
-Open http://localhost:3000.
 
-## Included
-- Responsive desktop sidebar, mobile header, six-module bottom navigation, quick-order action.
-- Typed domain models in `types/workshop.ts`.
-- `WorkshopContext` with Indonesian sample data and persistence key `denim_workshop_store_v1`.
-- Phone normalization (`08...` → `628...`), duplicate-phone validation, and currency formatter.
-- Functional overview screens for Dashboard, Customers, Orders, Schedule, Cashbook, and Settings.
+## Deploy to Vercel
+Import the GitHub repository. Framework: Next.js. Build command: `npm run build`.
 
-## Important Stage 1 notes
-- The seed data is demonstration data. It is automatically used on first launch; clearing the browser's local storage resets the app to the seed data.
-- Persistence is per browser/device. It is not yet a shared database or cloud backup.
-- Google Apps Script URL and sync timestamp are modeled, but cloud sync is intentionally not implemented in this foundation.
-- Order creation currently opens a navigation placeholder; the full order workflow is a later module.
-
-## Suggested next stages
-1. Build customer CRUD and measurement profile editor.
-2. Build order intake, item rows, DP/settlement and printable receipt.
-3. Build production scheduling and workload allocation.
-4. Build cashbook posting rules and monthly reporting.
-5. Add authenticated backend/database and reliable cloud sync (avoid treating localStorage as the source of truth for multi-device production use).
+## Storage note
+Data is still stored in browser LocalStorage (`denim_workshop_store_v1`). This stage does not synchronize data between devices. Configure a cloud database before using it as the only production record.
