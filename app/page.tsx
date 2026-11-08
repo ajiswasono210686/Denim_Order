@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AppShell, type ModuleKey } from '@/components/layout/AppShell';
 import { formatCurrency, useWorkshop } from '@/context/WorkshopContext';
 import CustomersView from '@/components/customers/CustomersView';
