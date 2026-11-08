@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { AppShell, type ModuleKey } from '@/components/layout/AppShell';
-import { useWorkshop } from '@/context/WorkshopContext';
+import { formatCurrency, useWorkshop } from '@/context/WorkshopContext';
 import CustomersView from '@/components/customers/CustomersView';
 import OrdersQueueView from '@/components/orders/OrdersQueueView';
 import ScheduleCapacityView from '@/components/schedule/ScheduleCapacityView';
