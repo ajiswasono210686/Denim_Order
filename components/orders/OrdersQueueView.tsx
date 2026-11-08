@@ -21,9 +21,42 @@ export default function OrdersQueueView(){
  const createQuickCustomer=()=>{const result=addCustomer(newCustomer);if(!result.ok){setError(result.message);return;}const created=customers.find(c=>c.normalized_phone===normalizePhone(newCustomer.phone));setCustomerId(created?.id||'');setQuickCustomer(false);setNewCustomer({name:'',phone:'',address:'',notes:''});setError('Pelanggan berhasil ditambahkan. Pilih pelanggan dari daftar jika belum otomatis terpilih.');};
  const save=()=>{setError('');const customer=customers.find(c=>c.id===customerId);if(!customer){setError('Pilih pelanggan terlebih dahulu.');return;}if(!items.length||items.some(i=>!i.item_name.trim()||i.qty<1)){setError('Setiap item wajib memiliki nama dan kuantitas minimal 1.');return;}if(deadline<orderDate){setError('Deadline tidak boleh lebih awal dari tanggal order.');return;}const normalizedItems:OrderItem[]=items.map((i,index)=>({...i,id:editing?.items[index]?.id||`ITEM-${Date.now()}-${index}`,subtotal:i.qty*i.unit_price,total_points:i.qty*i.workload_points}));const base={customer_id:customer.id,customer_name_snapshot:customer.name,customer_phone_snapshot:customer.normalized_phone,order_date:orderDate,deadline_date:deadline,status,items:normalizedItems,total_workload_points:totalPoints,subtotal_amount:subtotal,discount_amount:discount,total_amount:total,dp_amount:editing?editing.dp_amount:Math.min(dp,total),payment_method:paymentMethod,cash_received:cashReceived,cash_change:cashChange,notes};
   if(editing){updateOrder(editing.id,{...base,paid_amount:editing.paid_amount,remaining_balance:Math.max(0,total-editing.paid_amount),payment_status:editing.paid_amount<=0?'Unpaid':editing.paid_amount>=total?'Paid':'Partial'});}else{createOrder(base);}setModal(false);};
- const digitalReceipt=(o:Order)=>`*${config.workshop_name}*\n${config.workshop_tagline}\n${config.workshop_address}\n\n*STRUK PESANAN ${o.id}*\nPelanggan: ${o.customer_name_snapshot}\nTanggal: ${o.order_date}\nDeadline: ${o.deadline_date}\nStatus: ${statusLabel[o.status]}\n\n${o.items.map((i,n)=>`${n+1}. ${i.item_name} (${i.service_type})\n   ${i.qty} x ${formatCurrency(i.unit_price,config.currency)} = ${formatCurrency(i.subtotal,config.currency)}\n   ${i.specifications}`).join('\n')}\n\nSubtotal: ${formatCurrency(o.subtotal_amount,config.currency)}\nDiskon: ${formatCurrency(o.discount_amount,config.currency)}\nTotal: ${formatCurrency(o.total_amount,config.currency)}\nTerbayar: ${formatCurrency(o.paid_amount,config.currency)}\nSisa: ${formatCurrency(o.remaining_balance,config.currency)}\nPembayaran: ${o.payment_method} (${o.payment_status})\n\n${config.receipt_footer_note}`;
- const whatsapp=(o:Order)=>window.open(`https://wa.me/${o.customer_phone_snapshot}?text=${encodeURIComponent(digitalReceipt(o))}`,'_blank','noopener,noreferrer');
- const printReceipt=()=>{window.print();};
+ const digitalReceipt = (o: Order) => {
+  const items = o.items.map((item, index) =>
+    `${index + 1}. ${item.item_name} x${item.qty} - ${formatCurrency(item.subtotal, config.currency)}`
+  ).join('\n');
+
+  return [
+    `*${config.workshop_name}*`,
+    `Order: ${o.id}`,
+    `Pelanggan: ${o.customer_name_snapshot}`,
+    '',
+    '*Detail Pesanan:*',
+    items,
+    '',
+    `Total: ${formatCurrency(o.total_amount, config.currency)}`,
+    `DP: ${formatCurrency(o.dp_amount, config.currency)}`,
+    `Terbayar: ${formatCurrency(o.paid_amount, config.currency)}`,
+    `Sisa: ${formatCurrency(o.remaining_balance, config.currency)}`,
+    `Status: ${o.status}`,
+    '',
+    config.receipt_footer_note || ''
+  ].join('\n');
+};
+
+const whatsapp = (o: Order) => {
+  const phone = normalizePhone(o.customer_phone_snapshot);
+  const message = encodeURIComponent(digitalReceipt(o));
+
+  window.open(
+    `https://wa.me/${phone}?text=${message}`,
+    '_blank'
+  );
+};
+
+const printReceipt = () => {
+  window.print();
+};
  const activeCount=orders.filter(o=>o.status==='Received'||o.status==='In Progress').length;
  return <div className="space-y-5">
   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-lg font-black">Antrean pesanan & produksi</h2><p className="text-sm text-slate-500">{activeCount} order aktif · buat pesanan multi-item dan pantau pembayarannya.</p></div><button onClick={openNew} className="inline-flex items-center justify-center gap-2 rounded-xl bg-copper px-4 py-3 text-sm font-bold text-white hover:bg-copperHover"><Plus size={17}/> Order Baru</button></div>
